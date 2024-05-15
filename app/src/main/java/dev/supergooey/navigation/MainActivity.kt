@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.DateRange
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -24,7 +25,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -51,10 +54,17 @@ class MainActivity : ComponentActivity() {
   }
 }
 
+data class AppState(
+  val navBarItems: List<Item>
+) {
+  val selectedNavBarItem = navBarItems.first { it.selected }
+}
+
 data class Item(
   val label: String,
   val icon: ImageVector,
   val route: Destination,
+  val selected: Boolean,
 )
 
 sealed interface Destination {
@@ -66,15 +76,36 @@ sealed interface Destination {
   data object Three : Destination
 }
 
+
 @Composable
 fun App() {
-  val items = remember {
-    mutableStateListOf(
-      Item("One", Icons.Rounded.Home, One),
-      Item("Two", Icons.Rounded.AccountCircle, Two),
-      Item("Three", Icons.Rounded.DateRange, Three),
+  var state by remember {
+    mutableStateOf(
+      AppState(
+        navBarItems = listOf(
+          Item(
+            label = "One",
+            icon = Icons.Rounded.Home,
+            route = One,
+            selected = true
+          ),
+          Item(
+            label = "Two",
+            icon = Icons.Rounded.Person,
+            route = Two,
+            selected = false
+          ),
+          Item(
+            label = "Three",
+            icon = Icons.Rounded.DateRange,
+            route = Three,
+            selected = false
+          ),
+        )
+      )
     )
   }
+
   NavigationTheme {
     val navController = rememberNavController()
     Scaffold(
@@ -82,11 +113,22 @@ fun App() {
       contentWindowInsets = WindowInsets.safeContent,
       bottomBar = {
         NavigationBar {
-          items.forEach { item ->
+          state.navBarItems.forEach { item ->
             NavigationBarItem(
-              selected = true,
+              selected = item.selected,
               label = { Text(item.label) },
-              onClick = { navController.navigate(item.route) },
+              onClick = {
+                navController.navigate(item.route)
+                state = state.copy(
+                  navBarItems = state.navBarItems.map { oldItem ->
+                    if (oldItem == item) {
+                      oldItem.copy(selected = true)
+                    } else {
+                      oldItem.copy(selected = false)
+                    }
+                  }
+                )
+              },
               icon = {
                 Icon(
                   imageVector = item.icon,
@@ -103,7 +145,7 @@ fun App() {
         navController = navController,
         enterTransition = { slideIn(initialOffset = { IntOffset(x = it.width, y = 0) }, animationSpec = spring()) },
         exitTransition = { scaleOut(animationSpec = spring()) },
-        startDestination = One
+        startDestination = state.selectedNavBarItem.route
       ) {
         composable<One> {
           Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
